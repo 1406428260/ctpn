@@ -1,13 +1,14 @@
 # -*- coding:utf-8 -*-
+import logging
+
 import numpy as np
 import numpy.random as npr
-from bbox import bbox_overlaps
+import tensorflow as tf
+#from utils.bbox import bbox_overlaps
+
 from utils.bbox.bbox_transform import bbox_transform
 from utils.rpn_msr.config import Config as cfg
 from utils.rpn_msr.generate_anchors import generate_anchors
-import tensorflow as tf
-import logging
-from utils import stat
 
 FLAGS = tf.app.flags.FLAGS
 logger = logging.getLogger("anchor")
@@ -18,11 +19,13 @@ DEBUG = False
 '''
 
 
-def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride=[16, ], anchor_scales=[16, ],image_name=None):
+def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride=[16, ], anchor_scales=[16, ], image_name=None):
     assert rpn_cls_score.shape[0] == 1, 'Only single item batches are supported'
     height, width = rpn_cls_score.shape[1:3]
 
-    return anchor_target_layer_process((width,height), gt_boxes, im_info, _feat_stride, anchor_scales,image_name,FLAGS.debug)
+    return anchor_target_layer_process((width, height), gt_boxes, im_info, _feat_stride, anchor_scales, image_name,
+                                       FLAGS.debug)
+
 
 # bbox_pred  ( N , H , W , 40 )                N:批次  H=h/16  W=w/16 ，其中 h原图高    w原图宽
 # cls_pred   ( N , H , W*10 , 2 )              每个(featureMap H*W个)点的10个anchor的2分类值，（所以是H*W*10*2个）
@@ -39,32 +42,33 @@ def anchor_target_layer(rpn_cls_score, gt_boxes, im_info, _feat_stride=[16, ], a
 # rpn_cls_score是啥，是神经网络跑出来的一个分类结果，是包含文字，还是不包含文字的一个概率值，
 #       因为有9个框，而且有包含和不包含2个值，所以是(1, H, W, Ax2)维度的，对H,W的含义是，对每一个feature map中的点，都做了预测
 # 另，这个太神奇了，参数本来都是张量
-def anchor_target_layer_process(feature_map_shape, gt_boxes, im_info, _feat_stride, anchor_scales,image_name,is_debug):
-    logger.debug("<feature map>:\t%r",feature_map_shape)
+def anchor_target_layer_process(feature_map_shape, gt_boxes, im_info, _feat_stride, anchor_scales, image_name,
+                                is_debug):
+    logger.debug("<feature map>:\t%r", feature_map_shape)
     logger.debug("<gt_boxes>:\t%r", gt_boxes.shape)
     logger.debug("<im_info>:\t%r", im_info)
-    logger.debug("<image_name>:\t%r",image_name)
+    logger.debug("<image_name>:\t%r", image_name)
 
     _anchors = generate_anchors(scales=np.array(anchor_scales))  # 生成基本的anchor,一共10个，每一个是【x1,y1,y2,y2】坐标形式
     _num_anchors = _anchors.shape[0]  # 10个anchor，shape=[10,4]，4是4个坐标，[x1,y1, x2,y2]
     _allowed_border = 0
     im_info = im_info[0]  # 图像的高宽及通道数,[image_height, image_width, scale_ratios]
-    width,height = feature_map_shape  # feature-map的高宽，我怎么觉得是[1:2]啊？我理解错了，1：3，就是index=1和index=2的那两个值
+    width, height = feature_map_shape  # feature-map的高宽，我怎么觉得是[1:2]啊？我理解错了，1：3，就是index=1和index=2的那两个值
 
     # 产生所有的anchors，并剔除超出图像范围的
-    shift_x = np.arange(0, width) * _feat_stride #_feat_stride是缩放比例，原图和feature map的，这个相当于是得到原图宽
+    shift_x = np.arange(0, width) * _feat_stride  # _feat_stride是缩放比例，原图和feature map的，这个相当于是得到原图宽
     shift_y = np.arange(0, height) * _feat_stride
     shift_x, shift_y = np.meshgrid(shift_x, shift_y)  # in W H order
-    shifts = np.vstack((shift_x.ravel(), shift_y.ravel(), # ravel():将多维数组降位一维
+    shifts = np.vstack((shift_x.ravel(), shift_y.ravel(),  # ravel():将多维数组降位一维
                         shift_x.ravel(), shift_y.ravel())).transpose()  # 生成feature-map和真实image上anchor之间的偏移量
     A = _num_anchors  # 9/10个anchor
     K = shifts.shape[0]  # 50*37，feature-map的宽乘高的大小，对，shitfs矩阵shape现在是[ 50*37, 4 ]
     all_anchors = (
-                    _anchors.reshape((1, A, 4)) +
-                    shifts.reshape((1, K, 4)).transpose((1, 0, 2)) #K=50*37
-                   )  # 相当于复制宽高的维度，然后相加
-    logger.debug("所有anchors：%r",all_anchors.shape)
-    all_anchors = all_anchors.reshape((K * A, 4)) # [50*37*10,4]，我理解，就是所有的anchor的坐标
+            _anchors.reshape((1, A, 4)) +
+            shifts.reshape((1, K, 4)).transpose((1, 0, 2))  # K=50*37
+    )  # 相当于复制宽高的维度，然后相加
+    logger.debug("所有anchors：%r", all_anchors.shape)
+    all_anchors = all_anchors.reshape((K * A, 4))  # [50*37*10,4]，我理解，就是所有的anchor的坐标
     total_anchors_num = int(K * A)
     inds_inside = np.where(
         (all_anchors[:, 0] >= -_allowed_border) &
@@ -75,31 +79,32 @@ def anchor_target_layer_process(feature_map_shape, gt_boxes, im_info, _feat_stri
     anchors = all_anchors[inds_inside, :]  # 保留那些在图像内的anchor
     logger.debug("图像内部anchors：%r", anchors.shape)
 
-    #label: 1正例,0负例,-1不相关，在图像范围内的所有的anchor数量就是label的size，label就是anchor的数量
+    # label: 1正例,0负例,-1不相关，在图像范围内的所有的anchor数量就是label的size，label就是anchor的数量
     labels = np.empty((len(inds_inside),), dtype=np.float32)
     labels.fill(-1)  # 初始化label，均为-1
     overlaps = bbox_overlaps(
-        np.ascontiguousarray(anchors, dtype=np.float),   # anchor是[50*37*10,4]
+        np.ascontiguousarray(anchors, dtype=np.float),  # anchor是[50*37*10,4]
         np.ascontiguousarray(gt_boxes, dtype=np.float))  # 假设anchors有x个，gt_boxes有y个，返回的是一个（x,y）的数组
-    logger.debug("计算了IoU，anchors：%r,gt:%r",anchors.shape,gt_boxes.shape)
-    gt_index_max_IoU_4_each_anchor = overlaps.argmax(axis=1)  #axis=1是按行(anchor)来，找出每行中IoU最大的对应GT列号
-    max_overlaps = overlaps[np.arange(len(inds_inside)), gt_index_max_IoU_4_each_anchor] #根据GT列号，找出每个anchor对应的IoU最大值
-    logger.debug("选出每行anchor（和GT）对应的最大的IoU值,shape:%r",max_overlaps.shape)
+    logger.debug("计算了IoU，anchors：%r,gt:%r", anchors.shape, gt_boxes.shape)
+    gt_index_max_IoU_4_each_anchor = overlaps.argmax(axis=1)  # axis=1是按行(anchor)来，找出每行中IoU最大的对应GT列号
+    max_overlaps = overlaps[np.arange(len(inds_inside)), gt_index_max_IoU_4_each_anchor]  # 根据GT列号，找出每个anchor对应的IoU最大值
+    logger.debug("选出每行anchor（和GT）对应的最大的IoU值,shape:%r", max_overlaps.shape)
     labels[max_overlaps >= cfg.RPN_POSITIVE_OVERLAP] = 1  # overlap大于0.7的认为是前景
     labels[max_overlaps < cfg.RPN_NEGATIVE_OVERLAP] = 0  # 先给背景上标签，小于0.3overlap的
-    logger.debug("经过IoU>0.7|<0.3,筛选出%d个前景样本,%d个背景",(labels==1).sum(),(labels==0).sum())
+    logger.debug("经过IoU>0.7|<0.3,筛选出%d个前景样本,%d个背景", (labels == 1).sum(), (labels == 0).sum())
 
-    #然后，再筛选出和每个GT IoU最大的anchor，直接入选正例，这个论文3.5节专门提到了
-    index_max_iou_4gt = overlaps.argmax(axis=0)  #axis=0看列(GT)中最大的anchor的行号
-    labels[index_max_iou_4gt] = 1   #每个GT对应的最大的anchor标注成正例
-    logger.debug("将labels中GT最大IoU最大的anchor标注为正样本，个数:%d",len(index_max_iou_4gt))
+    # 然后，再筛选出和每个GT IoU最大的anchor，直接入选正例，这个论文3.5节专门提到了
+    index_max_iou_4gt = overlaps.argmax(axis=0)  # axis=0看列(GT)中最大的anchor的行号
+    labels[index_max_iou_4gt] = 1  # 每个GT对应的最大的anchor标注成正例
+    logger.debug("将labels中GT最大IoU最大的anchor标注为正样本，个数:%d", len(index_max_iou_4gt))
 
     __debug_iou_max_with_gt_anchors = anchors[index_max_iou_4gt]
     __debug_iou_more_0_7_anchors = anchors[max_overlaps >= cfg.RPN_POSITIVE_OVERLAP]
 
     align_negtive_positive_num_4_labels(labels)
 
-    bbox_targets = _compute_targets(anchors, gt_boxes[gt_index_max_IoU_4_each_anchor, :])  # 根据anchor和gtbox计算得真值（anchor和gtbox之间的偏差）
+    bbox_targets = _compute_targets(anchors, gt_boxes[gt_index_max_IoU_4_each_anchor,
+                                             :])  # 根据anchor和gtbox计算得真值（anchor和gtbox之间的偏差）
     bbox_inside_weights = np.zeros((len(inds_inside), 4), dtype=np.float32)
     bbox_inside_weights[labels == 1, :] = np.array(cfg.RPN_BBOX_INSIDE_WEIGHTS)
     bbox_outside_weights = np.zeros((len(inds_inside), 4), dtype=np.float32)
@@ -128,8 +133,9 @@ def anchor_target_layer_process(feature_map_shape, gt_boxes, im_info, _feat_stri
     bbox_outside_weights = bbox_outside_weights.reshape((1, height, width, A * 4))
     rpn_bbox_outside_weights = bbox_outside_weights
 
-    logger.debug("rpn_labels中正例%d个,负例%d个,无效%d个", (rpn_labels==1).sum(),(rpn_labels==0).sum(),(rpn_labels==-1).sum())
-    logger.debug("rpn_labels:\t%r",rpn_labels.shape)
+    logger.debug("rpn_labels中正例%d个,负例%d个,无效%d个", (rpn_labels == 1).sum(), (rpn_labels == 0).sum(),
+                 (rpn_labels == -1).sum())
+    logger.debug("rpn_labels:\t%r", rpn_labels.shape)
     logger.debug("rpn_bbox_targets:\t%r", rpn_bbox_targets.shape)
     logger.debug("rpn_bbox_inside_weights:\t%r", rpn_bbox_inside_weights.shape)
     logger.debug("rpn_bbox_outside_weights:\t%r", rpn_bbox_outside_weights.shape)
@@ -144,6 +150,7 @@ def anchor_target_layer_process(feature_map_shape, gt_boxes, im_info, _feat_stri
 
     # 得到一个新的RPN的标签，对比
     return rpn_labels, rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights
+
 
 # 让正负例尽量平衡
 def align_negtive_positive_num_4_labels(labels):
@@ -172,7 +179,6 @@ def debug_draw(__debug_iou_max_with_gt_anchors,
                gt_boxes,
                image_name,
                inside_labels):
-
     # 这段代码是调试用的，是为了让训练过程可视化，
     # 我要画出来，所有的备选anchor，包括IoU>0.7的 + GT相交最多的那个anchor，这些都是样本备选，用红色
     # 我要画出来所有的GT，用绿色
@@ -190,7 +196,7 @@ def debug_draw(__debug_iou_max_with_gt_anchors,
     negative_anchors = anchors[inside_labels == 0, :]
 
     RED = "#FF0000"
-    BLUE= "#0000FF"
+    BLUE = "#0000FF"
     PURPLE = "#9900FF"
     GREEN = "#00FF00"
     GRAY = "#808080"
@@ -207,19 +213,17 @@ def debug_draw(__debug_iou_max_with_gt_anchors,
     # for anchor in __debug_iou_max_with_gt_anchors:
     #     draw.rectangle(anchor.tolist(), outline=PURPLE)
 
-    logger.debug("[调试画图] 画出所有的GT[%d]，绿色",len(gt_boxes))
+    logger.debug("[调试画图] 画出所有的GT[%d]，绿色", len(gt_boxes))
     for gt in gt_boxes:
         draw.rectangle(gt[:4].tolist(), outline=GREEN)
 
-
-    logger.debug("[调试画图] 画出所有正例[%d]，蓝色",len(positive_anchors))
+    logger.debug("[调试画图] 画出所有正例[%d]，蓝色", len(positive_anchors))
     for anchor in positive_anchors:
         draw.rectangle(anchor.tolist(), outline=BLUE)
 
     # logger.debug("[调试画图] 画出所有负例[%d]，灰色",len(negative_anchors))
     # for anchor in negative_anchors:
     #     draw.rectangle(anchor.tolist(), outline=GRAY)
-
 
     # 保存图片
     import os
@@ -244,6 +248,7 @@ def _unmap(data, count, inds, fill=0):
         ret.fill(fill)
         ret[inds, :] = data
     return ret
+
 
 # ex_rois就是anchor的4个坐标
 # gt_rois就是gt的4个坐标

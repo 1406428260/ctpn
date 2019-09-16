@@ -7,21 +7,29 @@ import os
 import tensorflow as tf
 
 from nets import model_train as model  # 自己的模型网络
+import tensorflow as tf
 
 tf.app.flags.DEFINE_boolean('debug', False, '')
+tf.app.flags.DEFINE_boolean('debug', True, '')
+tf.app.flags.DEFINE_string('ckpt_mod_path', "", '')
+tf.app.flags.DEFINE_string('charset', "../../charset.3770.txt", '')
+tf.app.flags.DEFINE_string('save_mod_dir', "./model/crnn", '')
 
+FLAGS = tf.app.flags.FLAGS
 
 def convert():
     # 保存转换好的模型目录
-    savedModelDir = "./models/ctpn"
+    savedModelDir = FLAGS.save_mod_dir
     # 每次转换都生成一个版本目录
     for i in range(100000, 9999999):
         cur = os.path.join(savedModelDir, str(i))
         if not tf.gfile.Exists(cur):
             savedModelDir = cur
             break
+
     # 原ckpt模型
-    savePath = "../../../../models_ckpt/ctpn-2019-05-28-22-32-39-2901.ckpt"
+    ckptModPath = FLAGS.ckpt_mod_path
+
     g = tf.Graph()
     with g.as_default():
         # 输入张量
@@ -33,7 +41,7 @@ def convert():
         variable_averages = tf.train.ExponentialMovingAverage(0.997, global_step)
         saver = tf.train.Saver(variable_averages.variables_to_restore())
         session = tf.Session(graph=g)
-        saver.restore(sess=session, save_path=savePath)
+        saver.restore(sess=session, save_path=ckptModPath)
 
         # 保存转换训练好的模型
         builder = tf.saved_model.builder.SavedModelBuilder(savedModelDir)

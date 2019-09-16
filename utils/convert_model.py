@@ -9,7 +9,7 @@ import tensorflow as tf
 from nets import model_train as model  # 自己的模型网络
 import tensorflow as tf
 
-\tf.app.flags.DEFINE_string('ckpt_mod_path', "", '')
+tf.app.flags.DEFINE_string('ckpt_mod_path', "", '')
 tf.app.flags.DEFINE_string('save_mod_dir', "./model/crnn", '')
 
 FLAGS = tf.app.flags.FLAGS

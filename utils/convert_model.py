@@ -59,7 +59,7 @@ def convert():
         )
         builder.add_meta_graph_and_variables(
             session,
-            [tf.saved_model.tag_constants.SERVING],
+            ["CTPN"],
             {tf.saved_model.signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY: prediction_signature}
         )
         builder.save()

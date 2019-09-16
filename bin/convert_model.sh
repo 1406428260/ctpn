@@ -19,5 +19,4 @@ fi
 
 python -m utils.convert_model \
     --ckpt_mod_path=$ckpt_mod_path \
-    --save_mod_dir=$save_mod_dir \
-    --charset=charset.3770.txt
+    --save_mod_dir=$save_mod_dir

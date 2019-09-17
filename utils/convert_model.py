@@ -5,9 +5,9 @@
 import os
 from nets import model_train as model  # 自己的模型网络
 import tensorflow as tf
-from tensorflow.compat.v1.saved_model.signature_def_utils import build_signature_def
-from tensorflow.compat.v1.saved_model.builder import SavedModelBuilder
-from tensorflow.compat.v1.saved_model import build_tensor_info
+from tensorflow.saved_model.signature_def_utils import build_signature_def
+from tensorflow.saved_model.builder import SavedModelBuilder
+from tensorflow.saved_model.utils import build_tensor_info
 tf.app.flags.DEFINE_boolean('debug', True, '')
 tf.app.flags.DEFINE_string('ckpt_mod_path', "", '')
 tf.app.flags.DEFINE_string('save_mod_dir', "./model/crnn", '')

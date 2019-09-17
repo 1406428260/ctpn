@@ -3,12 +3,11 @@
 模型转换 ckpt > pb
 """
 import os
-
-import tensorflow as tf
-
 from nets import model_train as model  # 自己的模型网络
 import tensorflow as tf
-
+from tensorflow.compat.v1.saved_model.signature_def_utils import build_signature_def
+from tensorflow.compat.v1.saved_model.builder import SavedModelBuilder
+from tensorflow.compat.v1.saved_model import build_tensor_info
 tf.app.flags.DEFINE_boolean('debug', True, '')
 tf.app.flags.DEFINE_string('ckpt_mod_path', "", '')
 tf.app.flags.DEFINE_string('save_mod_dir', "./model/crnn", '')
@@ -42,25 +41,25 @@ def convert():
         saver.restore(sess=session, save_path=ckptModPath)
 
         # 保存转换训练好的模型
-        builder = tf.saved_model.builder.SavedModelBuilder(savedModelDir)
+        builder = SavedModelBuilder(savedModelDir)
         inputs = {
-            "input_image": tf.saved_model.utils.build_tensor_info(input_image),
-            "input_im_info": tf.saved_model.utils.build_tensor_info(input_im_info)
+            "input_image": build_tensor_info(input_image),
+            "input_im_info": build_tensor_info(input_im_info)
         }
         # model > classes 是模型的输出， 预测的时候就是这个输出
         output = {
-            "output_bbox_pred": tf.saved_model.utils.build_tensor_info(bbox_pred),
-            "output_cls_prob": tf.saved_model.utils.build_tensor_info(cls_prob)
+            "output_bbox_pred":build_tensor_info(bbox_pred),
+            "output_cls_prob": build_tensor_info(cls_prob)
         }
-        prediction_signature = tf.saved_model.signature_def_utils.build_signature_def(
+        prediction_signature = build_signature_def(
             inputs=inputs,
             outputs=output,
-            method_name=tf.saved_model.signature_constants.PREDICT_METHOD_NAME
+            method_name=tf.saved_model.PREDICT_METHOD_NAME
         )
         builder.add_meta_graph_and_variables(
-            session,
-            ["CTPN"],
-            {tf.saved_model.signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY: prediction_signature}
+            sess=session,
+            tags=[tf.saved_model.SERVING],
+            signature_def_map={tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY: prediction_signature}
         )
         builder.save()
 

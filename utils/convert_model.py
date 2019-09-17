@@ -54,7 +54,7 @@ def convert():
         prediction_signature = build_signature_def(
             inputs=inputs,
             outputs=output,
-            method_name=tf.saved_model.PREDICT_METHOD_NAME
+            method_name=tf.saved_model.signature_constants.PREDICT_METHOD_NAME
         )
         builder.add_meta_graph_and_variables(
             sess=session,

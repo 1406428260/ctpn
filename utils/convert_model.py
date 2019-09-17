@@ -58,7 +58,7 @@ def convert():
         )
         builder.add_meta_graph_and_variables(
             sess=session,
-            tags=[tf.saved_model.SERVING],
+            tags=[tf.saved_model.tag_constants.SERVING],
             signature_def_map={tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY: prediction_signature}
         )
         builder.save()

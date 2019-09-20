@@ -13,7 +13,7 @@ fi
 
 echo "开始检测图片的字块区域....."
 
-python main/pred.py \
+python -m ctpn.main.pred \
     --debug=True \
     --save=True \
     --evaluate=True \

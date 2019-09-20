@@ -3,11 +3,10 @@ flush.log
 backup/
 model/
 data/
-data_generator/font
-data_generator/data_generator.zip
-data_generator/background
-data_generator/info.txt
-test/
+ctpn/data_generator/font/
+ctpn/data_generator/data_generator.zip
+ctpn/data_generator/background/
+ctpn/data_generator/info.txt
 data/train/
 log.txt
 __pycache__/
@@ -28,3 +27,4 @@ checkpoints_*/
 *.swp
 *.pb
 *.ckpt
+*.pyx

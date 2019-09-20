@@ -10,7 +10,7 @@ fi
 
 if [ "$1" = "console" ]; then
     echo "调试模式:只训练一次"
-    python -m main.train \
+    python -m ctpn.main.train \
         --name=ctpn \
         --pretrained_model_path=data/vgg_16.ckpt \
         --max_steps=2 \
@@ -33,7 +33,7 @@ if [ "$1" = "console" ]; then
 fi
 
 echo "生产模式,使用GPU#$1"
-nohup python -m main.train \
+nohup python -m ctpn.main.train \
     --name=ctpn \
     --pretrained_model_path=data/vgg_16.ckpt \
     --max_steps=100000 \

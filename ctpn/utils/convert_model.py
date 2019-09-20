@@ -3,7 +3,7 @@
 模型转换 ckpt > pb
 """
 import os
-from nets import model_train as model  # 自己的模型网络
+from ctpn.nets import model_train as model  # 自己的模型网络
 import tensorflow as tf
 from tensorflow.saved_model.signature_def_utils import build_signature_def
 from tensorflow.saved_model.builder import SavedModelBuilder

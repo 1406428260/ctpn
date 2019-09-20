@@ -5,14 +5,14 @@ import cv2
 import tensorflow as tf
 import logging
 sys.path.append(os.getcwd())
-import nets.model_train as model
-from utils.rpn_msr.proposal_layer import proposal_layer
-from utils.text_connector.detectors import TextDetector
-from utils.evaluate.evaluator import *
-from utils import stat
-from utils.dataset import data_provider as data_provider
-from utils.prepare import image_utils
-from utils.rpn_msr.config import Config
+import ctpn.nets.model_train as model
+from ctpn.utils.rpn_msr.proposal_layer import proposal_layer
+from ctpn.utils.text_connector.detectors import TextDetector
+from ctpn.utils.evaluate.evaluator import *
+from ctpn.utils import stat
+from ctpn.utils.dataset import data_provider as data_provider
+from ctpn.utils.prepare import image_utils
+from ctpn.utils.rpn_msr.config import Config
 
 logger = logging.getLogger("Train")
 
@@ -146,6 +146,7 @@ def draw(image,boxes,color,thick=1):
 # 定义图，并且还原模型，创建session
 def initialize(config):
     g = tf.Graph()
+    result={}
     with g.as_default():
         global input_image,input_im_info,bbox_pred, cls_pred, cls_prob
 
@@ -173,8 +174,15 @@ def initialize(config):
             logger.debug("最新CTPN模型目录中最新模型文件:%s", ckpt)  # 有点担心learning rate也被恢复
             saver.restore(sess, ckpt)
 
+        result["input_image"]=input_image
+        result["input_im_info"]=input_im_info
+        result["bbox_pred"]=bbox_pred
+        result["cls_pred"]=cls_pred
+        result["cls_prob"]=cls_prob
+        result["session"] = sess
+        result["graph"] = g
 
-    return sess,g
+    return result
 
 
 def main():
@@ -202,10 +210,10 @@ def main():
 # image_list    : numpy数组，注意，这个格式是RGB的，如果需要使用，需要转一下[:,:,::-1]
 #                 为何这么设计呢？是为了兼容Web的服务，那边传过来的是RGB顺序的。
 # image_names   : 文件名字
-def pred(sess,image_list,image_names,graph=None):#,input_image,input_im_info,bbox_pred, cls_pred, cls_prob):
+def pred(params,image_list,image_names,tf_serving_call=None):#,input_image,input_im_info,bbox_pred, cls_pred, cls_prob):
 
     logger.info("开始探测图片的文字区域")
-    global input_image,input_im_info, bbox_pred, cls_pred, cls_prob
+
 
 
     # [{
@@ -231,14 +239,14 @@ def pred(sess,image_list,image_names,graph=None):#,input_image,input_im_info,bbo
 
         logger.info("探测图片[%s]的文字区域开始",image_name)
         start = time.time()
-        with graph.as_default():
-            boxes_big, scores, bbox_small = predict_by_network(
-                sess,
-                bbox_pred,
-                cls_prob,
-                input_im_info,
-                input_image,
-                resized_img)
+
+        boxes_big, scores, bbox_small = predict_by_network(params,resized_img,tf_serving_call)
+            # sess,
+            # bbox_pred,
+            # cls_prob,
+            # input_im_info,
+            # input_image,
+            # resized_img)
 
         # scale 放大 unresize back回去
         boxes_big = np.array(image_utils.resize_labels(boxes_big[:, :8], 1 / scale))
@@ -338,14 +346,34 @@ def post_detect(bbox_small, boxes_big, image_name, original_img, scores):
     return draw_image,f1_value
 
 # 调用前向运算来计算
-def predict_by_network(session, t_bbox_pred, t_cls_prob, t_input_im_info, t_input_image, d_img ):
+def predict_by_network(params,d_img,tf_serving_call=None):
     h, w, c = d_img.shape
     logger.debug('图像的h,w,c:%d,%d,%d', h, w, c)
     im_info = np.array([h, w, c]).reshape([1, 3])
     d_img = d_img[:, :, ::-1]
-    bbox_pred_val, cls_prob_val = session.run([t_bbox_pred, t_cls_prob],
-                                           feed_dict={t_input_image: [d_img],
-                                                      t_input_im_info: im_info})
+
+    if tf_serving_call is None:
+        # 还原各类张量
+        t_input_image = params["input_image"]
+        t_input_im_info = params["input_im_info"]
+        t_bbox_pred = params["bbox_pred"]
+        t_cls_pred = params["cls_pred"]
+        t_cls_prob = params["cls_prob"]
+        session = params["session"]
+        g = params["graph"]
+
+        with g.as_default():
+            logger.debug("通过session预测：%r",d_img.shape)
+            bbox_pred_val, cls_prob_val = \
+                session.run([t_bbox_pred,
+                             t_cls_prob],
+                            feed_dict={
+                            t_input_image: [d_img],
+                            t_input_im_info: im_info})
+    else:
+        logger.debug("通过TF-Serving预测：%r", d_img.shape)
+        bbox_pred_val, cls_prob_val =tf_serving_call(d_img,im_info)
+
     # 统计一下前景概率值的情况
     # cls_prob_val的shape: (1, H, W, Ax2)，所以需要先reshape成 (1, H, W, A, 2),然后去掉前景的概率值
     cls_prob_for_debug = cls_prob_val.reshape(1,

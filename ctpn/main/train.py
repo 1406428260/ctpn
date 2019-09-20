@@ -3,12 +3,12 @@ import os
 import time
 import tensorflow as tf
 from tensorflow.contrib import slim
-from nets import model_train as model
-from utils.dataset import data_provider as data_provider
-from utils.text_connector.detectors import TextDetector
-from utils.evaluate.evaluator import *
-from main import pred
-from main.early_stop import  EarlyStop
+from ctpn.nets import model_train as model
+from ctpn.utils.dataset import data_provider as data_provider
+from ctpn.utils.text_connector.detectors import TextDetector
+from ctpn.utils.evaluate.evaluator import *
+from ctpn.main import pred
+from ctpn.main.early_stop import  EarlyStop
 
 tf.app.flags.DEFINE_string('name', 'ctpn', '')
 tf.app.flags.DEFINE_float('learning_rate', 0.01, '') #学习率
@@ -278,8 +278,13 @@ def validate(sess,
         image = image_list[i]
         image_name = image_names[i]
 
-        # session, t_bbox_pred, t_cls_prob, t_input_im_info, t_input_image, d_img
-        boxes, scores, textsegs = pred.predict_by_network(sess,t_bbox_pred, t_cls_prob, t_input_im_info, t_input_image,image)
+        params = {}
+        params["input_image"] = t_input_image
+        params["input_im_info"] = t_input_im_info
+        params["bbox_pred"] = t_bbox_pred
+        params["cls_prob"] = t_cls_prob
+        params["session"] = sess
+        boxes, scores, textsegs = pred.predict_by_network(params,image)
 
         bbox_pred = boxes[:,:8]
 

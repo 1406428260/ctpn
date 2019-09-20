@@ -23,6 +23,6 @@ if [ "$save_mod_dir" = "" ]; then
     exit
 fi
 
-python -m utils.convert_model \
+python -m ctpn.utils.convert_model \
     --ckpt_mod_path=$ckpt_mod_path \
     --save_mod_dir=$save_mod_dir

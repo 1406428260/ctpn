@@ -32,7 +32,7 @@ if [ "$1" = "validate" ]; then
     raw_labels_dir=$validate_raw_labels_dir
 fi
 
-python -m utils.prepare.split_label \
+python -m ctpn.utils.prepare.split_label \
     --images_dir=$images_dir \
     --labels_split_dir=$labels_split_dir \
     --labels_dir=$labels_dir \

@@ -1,7 +1,7 @@
 import numpy as np
 import logging
-from utils.text_connector.other import clip_boxes
-from utils.text_connector.text_proposal_graph_builder import TextProposalGraphBuilder
+from ctpn.utils.text_connector.other import clip_boxes
+from ctpn.utils.text_connector.text_proposal_graph_builder import TextProposalGraphBuilder
 
 logger = logging.getLogger("TextProposalConnector")
 

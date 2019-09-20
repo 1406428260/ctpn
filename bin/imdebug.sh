@@ -7,7 +7,7 @@ if [ "$2" = "" ]; then
     exit
 fi
 
-python -m utils.prepare.image_debug \
+python -m ctpn.utils.prepare.image_debug \
     --action=$1 \
     --image_dir=$2 \
     --label_dir=$3 \

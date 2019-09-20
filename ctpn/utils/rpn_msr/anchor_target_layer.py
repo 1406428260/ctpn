@@ -6,9 +6,9 @@ import numpy.random as npr
 import tensorflow as tf
 #from utils.bbox import bbox_overlaps
 
-from utils.bbox.bbox_transform import bbox_transform
-from utils.rpn_msr.config import Config as cfg
-from utils.rpn_msr.generate_anchors import generate_anchors
+from ctpn.utils.bbox.bbox_transform import bbox_transform
+from ctpn.utils.rpn_msr.config import Config as cfg
+from ctpn.utils.rpn_msr.generate_anchors import generate_anchors
 
 FLAGS = tf.app.flags.FLAGS
 logger = logging.getLogger("anchor")

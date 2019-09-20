@@ -3,9 +3,9 @@ import traceback
 import cv2 as cv
 import numpy as np
 from tqdm import tqdm
-from utils.prepare.image_utils import orderConvex, shrink_poly
-from utils.rpn_msr.config import Config
-from utils.prepare import image_utils
+from ctpn.utils.prepare.image_utils import orderConvex, shrink_poly
+from ctpn.utils.rpn_msr.config import Config
+from ctpn.utils.prepare import image_utils
 '''
     这个程序用来把label，也就是大框
     生成一堆的小框（anchor）

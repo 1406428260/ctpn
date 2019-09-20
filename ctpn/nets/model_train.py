@@ -1,10 +1,10 @@
 import tensorflow as tf
 from tensorflow.contrib import slim
 import logging
-from nets import vgg
-from utils.rpn_msr.anchor_target_layer import anchor_target_layer as anchor_target_layer_py
-from utils import _p_shape,_p
-from utils.rpn_msr.config import Config as cfg
+from ctpn.nets import vgg
+from ctpn.utils.rpn_msr.anchor_target_layer import anchor_target_layer as anchor_target_layer_py
+from ctpn.utils import _p_shape,_p
+from ctpn.utils.rpn_msr.config import Config as cfg
 FLAGS = tf.app.flags.FLAGS
 
 logger = logging.getLogger('model_train')

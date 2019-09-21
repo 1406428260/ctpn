@@ -4,7 +4,7 @@ import logging
 import numpy as np
 import numpy.random as npr
 import tensorflow as tf
-#from utils.bbox import bbox_overlaps
+from ctpn_bbox.bbox import bbox_overlaps #bbox 是 site_packages中的 bbox.so
 
 from ctpn.utils.bbox.bbox_transform import bbox_transform
 from ctpn.utils.rpn_msr.config import Config as cfg

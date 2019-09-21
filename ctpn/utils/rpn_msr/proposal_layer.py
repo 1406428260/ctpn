@@ -1,6 +1,6 @@
 # -*- coding:utf-8 -*-
 import numpy as np
-from nms import nms
+from ctpn_bbox.nms import nms
 
 from ctpn.utils.bbox.bbox_transform import bbox_transform_inv, clip_boxes
 from ctpn.utils.rpn_msr.config import Config as cfg
